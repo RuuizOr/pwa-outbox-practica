@@ -213,9 +213,20 @@ function sincronizarPendientesFallback() {
 // ---------------------------------------------------------------------
 // Formulario (submit)
 // Evita la recarga, toma los valores, los envía y limpia el formulario.
+// Bloquea el botón mientras procesa para que varios clics seguidos
+// no manden el mismo reporte varias veces (doble envío).
 // ---------------------------------------------------------------------
+const btnEnviar = form.querySelector('button[type="submit"]');
+let enviando = false; // Candado: true mientras hay un envío en curso
+
 form.addEventListener('submit', (e) => {
   e.preventDefault(); // Sin esto la página se recarga
+
+  // Si ya hay un envío en curso, ignoramos el clic
+  if (enviando) return;
+  enviando = true;
+  btnEnviar.disabled = true;
+  btnEnviar.textContent = 'Enviando...';
 
   const datos = {
     titulo: inputTitulo.value.trim(),
@@ -224,7 +235,13 @@ form.addEventListener('submit', (e) => {
 
   procesarEnvioReporte(datos)
     .then(() => form.reset())
-    .catch((error) => console.error('[Outbox] Error al procesar el envío:', error));
+    .catch((error) => console.error('[Outbox] Error al procesar el envío:', error))
+    .then(() => {
+      // Pase lo que pase, liberamos el candado y el botón
+      enviando = false;
+      btnEnviar.disabled = false;
+      btnEnviar.textContent = 'Enviar Reporte';
+    });
 });
 
 
@@ -234,6 +251,10 @@ form.addEventListener('submit', (e) => {
 // Promise.all() y redibuja la bandeja. Los pendientes NO se tocan.
 // ---------------------------------------------------------------------
 btnPurgar.addEventListener('click', () => {
+  // Evita purgas simultáneas por varios clics seguidos
+  if (btnPurgar.disabled) return;
+  btnPurgar.disabled = true;
+
   obtenerTodosLosRegistros()
     .then((registros) => {
       const enviados = registros.filter((item) => item.estado === 'sincronizado');
@@ -243,7 +264,8 @@ btnPurgar.addEventListener('click', () => {
       console.log('[Outbox] Registros purgados:', resultados.length);
       return renderizarColaOutbox();
     })
-    .catch((error) => console.error('[Outbox] Error al purgar:', error));
+    .catch((error) => console.error('[Outbox] Error al purgar:', error))
+    .then(() => { btnPurgar.disabled = false; }); // Libera el botón
 });
 
 

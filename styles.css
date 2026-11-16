@@ -100,3 +100,5 @@ button:hover { background: #1d4ed8; }
 .estado.sincronizado { background: #dcfce7; color: #166534; }
 
 .vacio { color: #64748b; font-style: italic; }
+
+button:disabled { opacity: .6; cursor: not-allowed; }

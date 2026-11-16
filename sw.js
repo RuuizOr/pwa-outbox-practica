@@ -14,7 +14,7 @@
 importScripts('./db-helper.js');
 
 // Nueva versión de caché para forzar la actualización del SW en producción
-const CACHE_STATIC_NAME = 'static-outbox-v2';
+const CACHE_STATIC_NAME = 'static-outbox-v3';
 
 // Archivos del App Shell (todos relativos)
 const STATIC_FILES = [

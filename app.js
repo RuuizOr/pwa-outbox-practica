@@ -1,9 +1,11 @@
 // =====================================================================
-// app.js — Patrón Outbox (CRUD offline con IndexedDB)
+// app.js — Patrón Outbox + Background Sync (hilo principal / UI)
 // ---------------------------------------------------------------------
-// - CREATE: si el POST falla sin red, se guarda como 'pendiente'
+// - CREATE: si el POST falla sin red, se guarda como 'pendiente' y se
+//           registra la etiqueta 'sync-reportes' en el Service Worker
 // - READ:   dibuja la bandeja de salida desde IndexedDB
-// - UPDATE: al volver la red reenvía pendientes y los marca 'sincronizado'
+// - UPDATE: lo hace sw.js con el evento 'sync'. Si el navegador no tiene
+//           SyncManager (Safari/iOS, Firefox), lo hace app.js con 'online'
 // - DELETE: botón para purgar los registros ya sincronizados
 // Todo con .then() / .catch() / Promise.all(), sin async/await.
 // =====================================================================
@@ -18,6 +20,21 @@ const inputDescripcion = document.getElementById('descripcion');
 const listaOutbox = document.getElementById('lista-outbox');
 const btnPurgar = document.getElementById('btn-purgar');
 const badgeRed = document.getElementById('badge-red');
+
+
+// ---------------------------------------------------------------------
+// Fragmento G: escuchar mensajes que manda sw.js con postMessage.
+// Cuando el SW termina de sincronizar en segundo plano, avisa con
+// tipo 'OUTBOX_SINCRONIZADO' y aquí repintamos la bandeja.
+// ---------------------------------------------------------------------
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', (event) => {
+    if (event.data && event.data.tipo === 'OUTBOX_SINCRONIZADO') {
+      console.log('[UI] Confirmación recibida del Service Worker. Actualizando bandeja...');
+      renderizarColaOutbox();
+    }
+  });
+}
 
 
 // ---------------------------------------------------------------------
@@ -102,8 +119,9 @@ function renderizarColaOutbox() {
 // ---------------------------------------------------------------------
 // procesarEnvioReporte(datosFormulario)  —  CREATE
 // Intenta el POST. Si funciona, guarda como 'sincronizado'.
-// Si la red falla (.catch), lo encola como 'pendiente'.
-// En ambos casos al final redibuja la bandeja.
+// Si la red falla (.catch): guarda como 'pendiente' y, si el navegador
+// soporta Background Sync, registra la etiqueta 'sync-reportes' para que
+// sw.js reenvíe aunque se cierre la pestaña (Fragmento E).
 // ---------------------------------------------------------------------
 function procesarEnvioReporte(datosFormulario) {
   return fetch(ENDPOINT, {
@@ -125,24 +143,39 @@ function procesarEnvioReporte(datosFormulario) {
       });
     })
     .catch(() => {
-      console.warn('[Outbox] Sin conexión. Encolando transacción localmente...');
-      // Falla de red: queda en IndexedDB para reenviarse después
+      console.warn('[Outbox] Sin conexión. Encolando en IndexedDB...');
+
       return guardarRegistro({
         ...datosFormulario,
         estado: 'pendiente',
         fechaCreacion: Date.now()
-      });
+      })
+        .then(() => {
+          // Detección de soporte para Background Sync API
+          if ('serviceWorker' in navigator && 'SyncManager' in window) {
+            return navigator.serviceWorker.ready
+              .then((registro) => {
+                console.log('[Outbox] Registrando etiqueta sync-reportes en el SW...');
+                return registro.sync.register('sync-reportes');
+              })
+              .catch((error) => {
+                // Si falla el registro, el dato sigue seguro en IndexedDB
+                console.error('[Outbox] No se pudo registrar el sync:', error);
+              });
+          }
+        });
     })
     .then(() => renderizarColaOutbox());
 }
 
 
 // ---------------------------------------------------------------------
-// sincronizarPendientes()  —  UPDATE
-// Lee todo, filtra los 'pendiente', los reenvía en paralelo con
-// Promise.all() y a cada uno lo marca como 'sincronizado'.
+// sincronizarPendientesFallback()  —  UPDATE (respaldo)
+// Es la sincronizarPendientes() de la práctica anterior, renombrada.
+// Solo se usa en navegadores SIN SyncManager (Safari/iOS, Firefox).
+// Lee todo, filtra 'pendiente', reenvía con Promise.all() y actualiza.
 // ---------------------------------------------------------------------
-function sincronizarPendientes() {
+function sincronizarPendientesFallback() {
   console.log('[Outbox] Conexión detectada. Buscando registros pendientes...');
 
   return obtenerTodosLosRegistros()
@@ -215,13 +248,20 @@ btnPurgar.addEventListener('click', () => {
 
 
 // ---------------------------------------------------------------------
-// Eventos de conectividad
-// online: actualiza el badge y reenvía la cola
+// Eventos de conectividad  (Fragmento F)
+// online: actualiza el badge. Solo sincroniza desde la UI si el navegador
+// NO tiene SyncManager; si lo tiene, lo hace sw.js. Así se evita que
+// app.js y sw.js manden el mismo POST duplicado (condición de carrera).
 // offline: solo actualiza el badge
 // ---------------------------------------------------------------------
 window.addEventListener('online', () => {
   actualizarIndicadorRed();
-  sincronizarPendientes();
+
+  // Degradación elegante: fallback solo para navegadores sin Background Sync
+  if (!('SyncManager' in window)) {
+    console.log('[Outbox] Navegador sin SyncManager. Ejecutando fallback por evento online...');
+    sincronizarPendientesFallback();
+  }
 });
 
 window.addEventListener('offline', actualizarIndicadorRed);

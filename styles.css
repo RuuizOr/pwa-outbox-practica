@@ -1,0 +1,102 @@
+* { box-sizing: border-box; }
+
+body {
+  font-family: system-ui, sans-serif;
+  margin: 0;
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  background: #1e3a8a;
+  color: #fff;
+}
+
+header h1 { font-size: 1.25rem; margin: 0; }
+
+main { max-width: 760px; margin: 1.5rem auto; padding: 0 1rem; }
+
+.card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 1.25rem;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .08);
+}
+
+.card h2 { font-size: 1.1rem; margin-top: 0; }
+
+form { display: flex; flex-direction: column; gap: .6rem; }
+
+input, textarea {
+  padding: .6rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font: inherit;
+}
+
+textarea { min-height: 80px; resize: vertical; }
+
+button {
+  padding: .6rem 1rem;
+  border: none;
+  border-radius: 6px;
+  background: #2563eb;
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+
+button:hover { background: #1d4ed8; }
+
+#btn-purgar { background: #dc2626; }
+#btn-purgar:hover { background: #b91c1c; }
+
+.header-lista {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+/* Indicador de red */
+.badge {
+  padding: .3rem .8rem;
+  border-radius: 999px;
+  font-size: .85rem;
+  font-weight: 600;
+}
+.badge.online  { background: #16a34a; }
+.badge.offline { background: #dc2626; }
+
+/* Lista de la bandeja */
+#lista-outbox { list-style: none; padding: 0; margin: 1rem 0 0; }
+
+#lista-outbox li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: .7rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.item-info small { color: #64748b; }
+
+.estado {
+  padding: .2rem .6rem;
+  border-radius: 999px;
+  font-size: .8rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.estado.pendiente    { background: #fef3c7; color: #92400e; }
+.estado.sincronizado { background: #dcfce7; color: #166534; }
+
+.vacio { color: #64748b; font-style: italic; }
